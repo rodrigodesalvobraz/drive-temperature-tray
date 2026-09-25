@@ -1,5 +1,5 @@
 #define AppName "SSD Temperature Tray"
-#define AppVersion "1.0.2"
+#define AppVersion "1.0.3"
 [Setup]
 AppId={{39AD3EF8-7F82-4789-9430-7E5028C606D5}
 AppName={#AppName}
@@ -25,6 +25,7 @@ Name: startup; Description: "Start automatically when I sign in to Windows"; Fla
 Source: "..\build\SsdTemperatureTray.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\build\SsdTemperatureTray.exe.config"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\README.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\docs\images\*.png"; DestDir: "{app}\docs\images"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\SsdTemperatureTray.exe"

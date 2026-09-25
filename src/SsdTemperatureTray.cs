@@ -14,7 +14,7 @@ using System.Windows.Forms;
 using Microsoft.Win32;
 
 [assembly: System.Reflection.AssemblyTitle("SSD Temperature Tray")]
-[assembly: System.Reflection.AssemblyVersion("1.0.2.0")]
+[assembly: System.Reflection.AssemblyVersion("1.0.3.0")]
 
 namespace SsdTemperatureTray
 {
@@ -264,6 +264,8 @@ namespace SsdTemperatureTray
             var buttons = new FlowLayoutPanel { AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, FlowDirection = FlowDirection.LeftToRight, WrapContents = false, Anchor = AnchorStyles.Right, Margin = new Padding(0, 14, 0, 0) };
             var save = MakeButton("Save");
             var cancel = MakeButton("Cancel"); cancel.DialogResult = DialogResult.Cancel;
+            // This settings window is modeless; DialogResult alone does not close it.
+            cancel.Click += delegate { Close(); };
             buttons.Controls.Add(save); buttons.Controls.Add(cancel);
             grid.Controls.Add(buttons, 0, 7); grid.SetColumnSpan(buttons, 3);
             Controls.Add(grid);

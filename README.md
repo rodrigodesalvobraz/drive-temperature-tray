@@ -4,6 +4,14 @@ A small Windows system tray app that displays your SSD's current temperature **a
 
 It is a graphical companion to `smartctl -A /dev/sda`: no console window, no background service, and no network requests from the app.
 
+## Why this exists
+
+Poor ventilation can make a laptop run hot—for example, when its air vents are blocked by a soft surface. As components heat up, they may throttle performance to protect themselves, sometimes causing severe slowdowns. An overheating SSD can reduce its transfer speeds substantially.
+
+SSD Temperature Tray keeps the selected drive's temperature visible in real time, so you can notice rising temperatures and see how they change when you improve ventilation or reduce the workload. It monitors the **drive itself**, not CPU temperature or the whole laptop; temperature alone does not prove the cause of a slowdown. Supported HDDs work too.
+
+![Drive temperature displayed in the Windows system tray](docs/images/tray.png)
+
 ## Features
 
 - Numeric Celsius icon, with exact temperature and reading time in the tooltip.
@@ -28,7 +36,7 @@ The app searches the standard `Program Files\smartmontools\bin` locations and th
    ```powershell
    & 'C:\Program Files\smartmontools\bin\smartctl.exe' -j -A /dev/sda
    ```
-2. Run `SsdTemperatureTray-Setup-1.0.2.exe` from a local build or a future GitHub release.
+2. Run `SsdTemperatureTray-Setup-1.0.3.exe` from a local build or a future GitHub release.
 3. Leave **Start automatically when I sign in to Windows** selected.
 4. Launch the app. Hover over its tray number for the temperature and last reading time. Double-click for details; right-click for Settings, refresh, startup, or Exit.
 
@@ -40,7 +48,25 @@ To uninstall, use **Settings → Apps → Installed apps → SSD Temperature Tra
 
 ## Configuration and troubleshooting
 
-Right-click the tray icon and choose **Settings**. Settings are stored in `%LOCALAPPDATA%\SsdTemperatureTray\settings.json`:
+Right-click the tray icon and choose **Settings**.
+
+![SSD Temperature Tray settings dialog](docs/images/settings.png)
+
+| Option | What it does |
+| --- | --- |
+| **Device** | Select a drive found by smartctl, or type a device name such as `/dev/sda`. Only the selected drive is monitored. |
+| **Rescan** | Refresh the device list, for example after connecting a drive. |
+| **smartctl.exe** | Leave blank to find smartctl automatically, or enter its full executable path. |
+| **Browse...** | Locate `smartctl.exe` using a file picker. |
+| **Refresh (seconds)** | Set how often to read the temperature, from 1 to 3600 seconds. The default is 2. |
+| **Amber at (°C)** | Change the icon from blue to amber at this temperature; default 60°C. |
+| **Red at (°C)** | Change the icon to red at this temperature; default 70°C. Must be higher than the amber threshold. |
+| **Save** | Validate, save, and apply your changes, then close Settings. |
+| **Cancel / Esc** | Close Settings and discard unsaved changes. Monitoring continues with the previous settings. |
+
+Color thresholds are visual cues, not the drive manufacturer's thermal limits, and they do not control cooling or throttling. The tray menu also provides **Start when I sign in**, **Refresh now**, **Details**, and **Exit**. Exit stops monitoring until you launch the app again or sign in with startup enabled.
+
+Settings are stored in `%LOCALAPPDATA%\SsdTemperatureTray\settings.json`:
 
 ```json
 {
@@ -84,12 +110,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build.ps1 -Install
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build.ps1 -Installer -IsccPath 'C:\path\to\ISCC.exe'
 ```
 
-Output: `dist\SsdTemperatureTray-Setup-1.0.2.exe`; the build prints its SHA-256 hash. The installer and app are currently unsigned. Build outputs are intentionally excluded from Git; distribute the installer through GitHub Releases when publishing the repository.
+Output: `dist\SsdTemperatureTray-Setup-1.0.3.exe`; the build prints its SHA-256 hash. The installer and app are currently unsigned. Build outputs are intentionally excluded from Git; distribute the installer through GitHub Releases when publishing the repository.
 
 Unattended installation (launch the app separately afterwards):
 
 ```powershell
-Start-Process .\dist\SsdTemperatureTray-Setup-1.0.2.exe -ArgumentList '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /TASKS="startup"' -Wait
+Start-Process .\dist\SsdTemperatureTray-Setup-1.0.3.exe -ArgumentList '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /TASKS="startup"' -Wait
 ```
 
 ## Project layout
