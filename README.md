@@ -1,0 +1,107 @@
+# SSD Temperature Tray
+
+A small Windows system tray app that displays your SSD's current temperature **as a number in the tray icon**, refreshing every **2 seconds** by default.
+
+It is a graphical companion to `smartctl -A /dev/sda`: no console window, no background service, and no network requests from the app.
+
+## Features
+
+- Numeric Celsius icon, with exact temperature and reading time in the tooltip.
+- Configurable device, refresh interval, smartctl path, and icon color thresholds.
+- Blue below 60°C, amber from 60°C, red from 70°C by default. These are display preferences, not manufacturer health limits.
+- A gray `--` on errors; double-click for details. Failed reads never leave an old temperature displayed as current.
+- Optional automatic startup at Windows sign-in, including after a reboot.
+- One instance per Windows session, hidden smartctl processes, non-overlapping reads, and a five-second command timeout.
+- Per-user installer, Start menu shortcut, and Windows uninstall support.
+
+## Requirements
+
+- Windows 10 or 11 with .NET Framework 4.8 or newer (already included in Windows 11).
+- [smartmontools](https://www.smartmontools.org/) 7.x, installed separately. The installer does not bundle or download it.
+- A drive that exposes its temperature through smartctl. The default device is `/dev/sda`.
+
+The app searches the standard `Program Files\smartmontools\bin` locations and then `PATH`. You can also select `smartctl.exe` in Settings. Depending on the drive and controller, smartctl may require administrator privileges. The app runs with your normal permissions and does not automatically elevate.
+
+## Install and use
+
+1. Install smartmontools if needed and confirm that it can read your SSD:
+   ```powershell
+   & 'C:\Program Files\smartmontools\bin\smartctl.exe' -j -A /dev/sda
+   ```
+2. Run `SsdTemperatureTray-Setup-1.0.0.exe` from a local build or a future GitHub release.
+3. Leave **Start automatically when I sign in to Windows** selected.
+4. Launch the app. Hover over its tray number for the temperature and last reading time. Double-click for details; right-click for Settings, refresh, startup, or Exit.
+
+Windows may initially put the icon in the tray overflow (`^`). Drag it onto the taskbar notification area, or enable it in Windows taskbar settings.
+
+The installer uses `%LOCALAPPDATA%\Programs\SsdTemperatureTray` and adds a quoted executable path to `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` under `SsdTemperatureTray`. Startup occurs when your desktop session begins, not before sign-in. Windows Task Manager's Startup apps settings can separately disable it.
+
+To uninstall, use **Settings → Apps → Installed apps → SSD Temperature Tray**, or the Start menu uninstall shortcut. The startup entry is removed. Personal settings and the most recent diagnostic reading are retained in `%LOCALAPPDATA%\SsdTemperatureTray`; delete that folder manually if you no longer want them.
+
+## Configuration and troubleshooting
+
+Right-click the tray icon and choose **Settings**. Settings are stored in `%LOCALAPPDATA%\SsdTemperatureTray\settings.json`:
+
+```json
+{
+  "Device": "/dev/sda",
+  "SmartctlPath": "",
+  "IntervalSeconds": 2,
+  "WarmCelsius": 60,
+  "HotCelsius": 70
+}
+```
+
+Close the app before editing this file manually. A blank executable path enables auto-detection. Invalid settings cause the app to use defaults and show a notification; the invalid file is preserved until you save Settings.
+
+If the tray shows `--`, double-click it for the error, verify the device with `smartctl --scan`, and try the command above in PowerShell. A USB bridge or RAID controller may not expose temperature; custom smartctl device-type arguments are not currently supported. Higher smartctl exit-status bits can indicate drive health/history warnings even when a temperature is available: this app is a temperature display, not a complete SMART health monitor.
+
+The latest read result is replaced in `status.json` beside the settings file. It contains the temperature, UTC timestamp, error (if any), and smartctl exit code; it is not an accumulating log. The timestamp uses the .NET JSON `/Date(milliseconds-since-epoch)/` representation. A one-shot diagnostic is also available:
+
+```powershell
+$app = "$env:LOCALAPPDATA\Programs\SsdTemperatureTray\SsdTemperatureTray.exe"
+$report = "$env:TEMP\ssd-temperature-probe.json"
+Start-Process -FilePath $app -ArgumentList "--probe `"$report`"" -Wait
+Get-Content $report
+```
+
+## Build from source
+
+The app uses Windows Forms and the .NET Framework compiler included with Windows. No NuGet packages or .NET SDK are needed.
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\test.ps1
+```
+
+Output: `build\SsdTemperatureTray.exe` and its `.config` file. Keep them together.
+
+For the Windows installer, install [Inno Setup 6](https://jrsoftware.org/isdl.php), then run:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build.ps1 -Installer
+# Or specify a compiler location:
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build.ps1 -Installer -IsccPath 'C:\path\to\ISCC.exe'
+```
+
+Output: `dist\SsdTemperatureTray-Setup-1.0.0.exe`; the build prints its SHA-256 hash. The installer and app are currently unsigned. Build outputs are intentionally excluded from Git; distribute the installer through GitHub Releases when publishing the repository.
+
+Unattended installation (launch the app separately afterwards):
+
+```powershell
+Start-Process .\dist\SsdTemperatureTray-Setup-1.0.0.exe -ArgumentList '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /TASKS="startup"' -Wait
+```
+
+## Project layout
+
+| Path | Purpose |
+| --- | --- |
+| `src/` | Tray UI, asynchronous smartctl reader, configuration, and manifest |
+| `installer/setup.iss` | Per-user installer and startup registration |
+| `scripts/build.ps1` | Compile app and optionally installer |
+| `scripts/test.ps1` | Build and run parser, validation, icon, and process tests |
+| `tests/` | Tests independent of a physical drive |
+
+The reader consumes smartctl's unified `temperature.current` JSON field, shared by supported NVMe and ATA devices. It redirects both process streams, enforces a timeout, and updates the UI asynchronously. Each replacement icon releases its native handle.
+
+Before publishing a release, run the tests, probe a real drive, confirm the tray updates, and check install/uninstall and sign-in startup on the target Windows version.
