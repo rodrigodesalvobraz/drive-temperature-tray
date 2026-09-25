@@ -36,7 +36,7 @@ The app searches the standard `Program Files\smartmontools\bin` locations and th
    ```powershell
    & 'C:\Program Files\smartmontools\bin\smartctl.exe' -j -A /dev/sda
    ```
-2. Download and run [DriveTemperatureTray-Setup-1.0.4.exe](https://github.com/rb-arcade1988/drive-temperature-tray/releases/download/v1.0.4/DriveTemperatureTray-Setup-1.0.4.exe), or build the installer locally.
+2. Download and run [DriveTemperatureTray-Setup-1.0.4.exe](https://github.com/rodrigodesalvobraz/drive-temperature-tray/releases/download/v1.0.4/DriveTemperatureTray-Setup-1.0.4.exe), or build the installer locally.
 3. Leave **Start automatically when I sign in to Windows** selected.
 4. Launch the app. Hover over its tray number for the temperature and last reading time. Double-click for details; right-click for Settings, refresh, startup, or Exit.
 
@@ -112,7 +112,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build.ps1 -Install
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build.ps1 -Installer -IsccPath 'C:\path\to\ISCC.exe'
 ```
 
-Output: `dist\DriveTemperatureTray-Setup-1.0.4.exe`; the build prints its SHA-256 hash. The installer and app are currently unsigned. Build outputs are intentionally excluded from Git; installers and checksums are available on [GitHub Releases](https://github.com/rb-arcade1988/drive-temperature-tray/releases).
+Output: `dist\DriveTemperatureTray-Setup-1.0.4.exe`; the build prints its SHA-256 hash. The installer and app are currently unsigned. Build outputs are intentionally excluded from Git; installers and checksums are available on [GitHub Releases](https://github.com/rodrigodesalvobraz/drive-temperature-tray/releases).
 
 Unattended installation (launch the app separately afterwards):
 
