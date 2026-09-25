@@ -6,7 +6,7 @@ It is a graphical companion to `smartctl -A /dev/sda`: no console window, no bac
 
 ## Why this exists
 
-Poor ventilation can make a laptop run hot—for example, when its air vents are blocked by a soft surface. As components heat up, they may throttle performance to protect themselves, sometimes causing severe slowdowns. An overheating SSD can reduce its transfer speeds substantially.
+Poor ventilation can make a laptop run hot—for example, when its air vents are blocked by a soft surface. As components heat up, they may throttle performance to protect themselves, sometimes causing severe slowdowns. An overheating drive can reduce its transfer speeds substantially.
 
 Drive Temperature Tray keeps the selected drive's temperature visible in real time, so you can notice rising temperatures and see how they change when you improve ventilation or reduce the workload. It monitors the **drive itself**, not CPU temperature or the whole laptop; temperature alone does not prove the cause of a slowdown. Supported HDDs work too.
 
@@ -43,8 +43,6 @@ The app searches the standard `Program Files\smartmontools\bin` locations and th
 Windows may initially put the icon in the tray overflow (`^`). Drag it onto the taskbar notification area, or enable it in Windows taskbar settings.
 
 The installer uses `%LOCALAPPDATA%\Programs\DriveTemperatureTray` and adds a quoted executable path to `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` under `DriveTemperatureTray`. Startup occurs when your desktop session begins, not before sign-in. Windows Task Manager's Startup apps settings can separately disable it.
-
-Upgrading from **SSD Temperature Tray** updates the same installation, replaces the old startup entry and shortcuts, and imports your existing settings. An existing installation keeps its previous installation folder; new installations use the folder above.
 
 To uninstall, use **Settings → Apps → Installed apps → Drive Temperature Tray**, or the Start menu uninstall shortcut. The startup entry is removed. Personal settings and the most recent diagnostic reading are retained in `%LOCALAPPDATA%\DriveTemperatureTray`; delete that folder manually if you no longer want them.
 
