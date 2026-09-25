@@ -14,7 +14,7 @@ using System.Windows.Forms;
 using Microsoft.Win32;
 
 [assembly: System.Reflection.AssemblyTitle("SSD Temperature Tray")]
-[assembly: System.Reflection.AssemblyVersion("1.0.1.0")]
+[assembly: System.Reflection.AssemblyVersion("1.0.2.0")]
 
 namespace SsdTemperatureTray
 {
@@ -216,7 +216,7 @@ namespace SsdTemperatureTray
     public sealed class SettingsForm : Form
     {
         private readonly ComboBox device = new ComboBox { DropDownStyle = ComboBoxStyle.DropDown, Dock = DockStyle.Fill, MinimumSize = new Size(240, 0) };
-        private readonly TextBox path = new TextBox { Dock = DockStyle.Fill };
+        private readonly TextBox path = new TextBox { BorderStyle = BorderStyle.FixedSingle };
         private readonly Label scanStatus = new Label { Text = "Looking for devices...", AutoSize = true, ForeColor = SystemColors.GrayText };
         private readonly Button rescan = MakeButton("Rescan");
         private readonly CancellationTokenSource scanCancellation = new CancellationTokenSource();
@@ -281,11 +281,11 @@ namespace SsdTemperatureTray
         }
         private static void AddRow(TableLayoutPanel grid, int row, string caption, Control input, Control button)
         {
-            grid.Controls.Add(new Label { Text = caption, AutoSize = true, Anchor = AnchorStyles.Left, Margin = new Padding(0, 7, 18, 10) }, 0, row);
+            grid.Controls.Add(new Label { Text = caption, AutoSize = true, Anchor = AnchorStyles.Left, Margin = new Padding(0, 6, 18, 6) }, 0, row);
             input.Anchor = input is NumericUpDown ? AnchorStyles.Left : AnchorStyles.Left | AnchorStyles.Right;
-            input.Margin = new Padding(3, 3, 3, 10);
+            input.Margin = new Padding(3, 6, 3, 6);
             grid.Controls.Add(input, 1, row);
-            if (button != null) { button.Anchor = AnchorStyles.Top; button.Margin = new Padding(6, 0, 0, 8); grid.Controls.Add(button, 2, row); }
+            if (button != null) { button.Anchor = AnchorStyles.None; button.Margin = new Padding(6, 6, 0, 6); grid.Controls.Add(button, 2, row); }
         }
         private async Task Scan()
         {
