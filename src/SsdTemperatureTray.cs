@@ -14,7 +14,7 @@ using System.Windows.Forms;
 using Microsoft.Win32;
 
 [assembly: System.Reflection.AssemblyTitle("SSD Temperature Tray")]
-[assembly: System.Reflection.AssemblyVersion("1.0.0.0")]
+[assembly: System.Reflection.AssemblyVersion("1.0.1.0")]
 
 namespace SsdTemperatureTray
 {
@@ -69,6 +69,40 @@ namespace SsdTemperatureTray
 
     public static class TemperatureReader
     {
+        public sealed class DetectedDevice { public string name { get; set; } }
+        public sealed class ScanResult { public List<DetectedDevice> devices { get; set; } }
+        public static async Task<List<string>> ScanAsync(string configured, CancellationToken cancellation)
+        {
+            using (var process = new Process())
+            {
+                process.StartInfo = new ProcessStartInfo(Locate(configured), "--scan -j") {
+                    UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true
+                };
+                process.Start();
+                var output = process.StandardOutput.ReadToEndAsync();
+                var error = process.StandardError.ReadToEndAsync();
+                var watch = Stopwatch.StartNew();
+                try
+                {
+                    while (!process.HasExited)
+                    {
+                        cancellation.ThrowIfCancellationRequested();
+                        if (watch.ElapsedMilliseconds > 5000) throw new TimeoutException("Device scan timed out.");
+                        await Task.Delay(50, cancellation);
+                    }
+                    string json = await output;
+                    await error;
+                    if (process.ExitCode != 0) throw new InvalidOperationException("Device scan failed. You can still enter a device manually.");
+                    var scan = new JavaScriptSerializer().Deserialize<ScanResult>(json);
+                    var names = new List<string>();
+                    if (scan != null && scan.devices != null)
+                        foreach (var device in scan.devices)
+                            if (!String.IsNullOrWhiteSpace(device.name) && !names.Contains(device.name)) names.Add(device.name);
+                    return names;
+                }
+                finally { if (!process.HasExited) { try { process.Kill(); } catch (InvalidOperationException) { } } }
+            }
+        }
         public static string Locate(string configured)
         {
             if (!String.IsNullOrWhiteSpace(configured))
@@ -179,6 +213,99 @@ namespace SsdTemperatureTray
         }
     }
 
+    public sealed class SettingsForm : Form
+    {
+        private readonly ComboBox device = new ComboBox { DropDownStyle = ComboBoxStyle.DropDown, Dock = DockStyle.Fill, MinimumSize = new Size(240, 0) };
+        private readonly TextBox path = new TextBox { Dock = DockStyle.Fill };
+        private readonly Label scanStatus = new Label { Text = "Looking for devices...", AutoSize = true, ForeColor = SystemColors.GrayText };
+        private readonly Button rescan = MakeButton("Rescan");
+        private readonly CancellationTokenSource scanCancellation = new CancellationTokenSource();
+        private bool scanning;
+        private static Button MakeButton(string text)
+        {
+            return new Button { Text = text, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Padding = new Padding(12, 5, 12, 5), Margin = new Padding(6, 0, 0, 0) };
+        }
+        public SettingsForm(Settings settings, Action<Settings> saveSettings)
+        {
+            SuspendLayout();
+            AutoScaleDimensions = new SizeF(96, 96);
+            AutoScaleMode = AutoScaleMode.Dpi;
+            Font = new Font("Segoe UI", 9);
+            Text = "SSD Temperature Tray — Settings";
+            FormBorderStyle = FormBorderStyle.FixedDialog;
+            MaximizeBox = false; MinimizeBox = false;
+            StartPosition = FormStartPosition.CenterScreen;
+            AutoSize = true; AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            Padding = new Padding(18);
+            var grid = new TableLayoutPanel { AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Location = new Point(18, 18), MinimumSize = new Size(600, 0), ColumnCount = 3, RowCount = 8, Margin = Padding.Empty };
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            device.Items.Add(settings.Device); device.Text = settings.Device;
+            path.Text = settings.SmartctlPath;
+            var browse = MakeButton("Browse...");
+            browse.Click += async delegate {
+                using (var dialog = new OpenFileDialog { Filter = "smartctl executable|smartctl.exe", CheckFileExists = true })
+                    if (dialog.ShowDialog(this) == DialogResult.OK) { path.Text = dialog.FileName; await Scan(); }
+            };
+            rescan.Click += async delegate { await Scan(); };
+            AddRow(grid, 0, "Device", device, rescan);
+            scanStatus.Margin = new Padding(3, 0, 3, 12);
+            grid.Controls.Add(scanStatus, 1, 1); grid.SetColumnSpan(scanStatus, 2);
+            AddRow(grid, 2, "smartctl.exe", path, browse);
+            var pathHint = new Label { Text = "Leave blank to find smartctl automatically.", AutoSize = true, ForeColor = SystemColors.GrayText, Margin = new Padding(3, 0, 3, 12) };
+            grid.Controls.Add(pathHint, 1, 3); grid.SetColumnSpan(pathHint, 2);
+            var interval = new NumericUpDown { Minimum = 1, Maximum = 3600, Value = settings.IntervalSeconds, Width = 100 };
+            var warm = new NumericUpDown { Minimum = 0, Maximum = 149, Value = settings.WarmCelsius, Width = 100 };
+            var hot = new NumericUpDown { Minimum = 1, Maximum = 150, Value = settings.HotCelsius, Width = 100 };
+            AddRow(grid, 4, "Refresh (seconds)", interval, null);
+            AddRow(grid, 5, "Amber at (°C)", warm, null);
+            AddRow(grid, 6, "Red at (°C)", hot, null);
+            var buttons = new FlowLayoutPanel { AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, FlowDirection = FlowDirection.LeftToRight, WrapContents = false, Anchor = AnchorStyles.Right, Margin = new Padding(0, 14, 0, 0) };
+            var save = MakeButton("Save");
+            var cancel = MakeButton("Cancel"); cancel.DialogResult = DialogResult.Cancel;
+            buttons.Controls.Add(save); buttons.Controls.Add(cancel);
+            grid.Controls.Add(buttons, 0, 7); grid.SetColumnSpan(buttons, 3);
+            Controls.Add(grid);
+            AcceptButton = save; CancelButton = cancel;
+            save.Click += delegate {
+                try {
+                    var updated = new Settings { Device = device.Text.Trim(), SmartctlPath = path.Text.Trim(), IntervalSeconds = (int)interval.Value, WarmCelsius = (int)warm.Value, HotCelsius = (int)hot.Value };
+                    updated.Validate(); TemperatureReader.Locate(updated.SmartctlPath);
+                    saveSettings(updated); Close();
+                } catch (Exception ex) { MessageBox.Show(this, ex.Message, "Cannot save settings", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+            };
+            Shown += async delegate { await Scan(); };
+            FormClosed += delegate { scanCancellation.Cancel(); };
+            ResumeLayout(true);
+        }
+        private static void AddRow(TableLayoutPanel grid, int row, string caption, Control input, Control button)
+        {
+            grid.Controls.Add(new Label { Text = caption, AutoSize = true, Anchor = AnchorStyles.Left, Margin = new Padding(0, 7, 18, 10) }, 0, row);
+            input.Anchor = input is NumericUpDown ? AnchorStyles.Left : AnchorStyles.Left | AnchorStyles.Right;
+            input.Margin = new Padding(3, 3, 3, 10);
+            grid.Controls.Add(input, 1, row);
+            if (button != null) { button.Anchor = AnchorStyles.Top; button.Margin = new Padding(6, 0, 0, 8); grid.Controls.Add(button, 2, row); }
+        }
+        private async Task Scan()
+        {
+            if (scanning || IsDisposed) return;
+            scanning = true; rescan.Enabled = false; scanStatus.Text = "Looking for devices...";
+            try {
+                var devices = await TemperatureReader.ScanAsync(path.Text.Trim(), scanCancellation.Token);
+                if (IsDisposed) return;
+                string selected = device.Text;
+                device.Items.Clear();
+                foreach (string name in devices) device.Items.Add(name);
+                if (!String.IsNullOrWhiteSpace(selected) && !device.Items.Contains(selected)) device.Items.Add(selected);
+                device.Text = selected;
+                scanStatus.Text = devices.Count == 0 ? "No devices found. Enter a device manually." : "Choose a detected device or enter one manually.";
+            } catch (OperationCanceledException) { }
+            catch (Exception) { if (!IsDisposed) scanStatus.Text = "Scan unavailable. Enter a device manually."; }
+            finally { scanning = false; if (!IsDisposed) rescan.Enabled = true; }
+        }
+    }
+
     internal sealed class TrayApplication : ApplicationContext
     {
         private readonly NotifyIcon tray = new NotifyIcon();
@@ -243,36 +370,16 @@ namespace SsdTemperatureTray
             string message = latest == null ? "Waiting for the first reading." : latest.Celsius.HasValue ? "Temperature: " + latest.Celsius + " °C\nRead at: " + latest.TimestampUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss") : latest.Error;
             MessageBox.Show(message + "\n\nDevice: " + settings.Device + "\nRefresh: " + settings.IntervalSeconds + " seconds\nsmartctl exit: " + (latest == null ? "pending" : latest.ExitCode.ToString()) + "\n\nIcon colors: blue < " + settings.WarmCelsius + " °C, amber < " + settings.HotCelsius + " °C, red above.\nColors are configurable display thresholds, not drive health limits.", "SSD Temperature Tray", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
-        private void ShowSettings()
+        public void ShowSettings()
         {
             if (settingsWindow != null) { settingsWindow.Activate(); return; }
-            var form = new Form { Text = "SSD Temperature Tray — Settings", ClientSize = new Size(520, 290), FormBorderStyle = FormBorderStyle.FixedDialog, MaximizeBox = false, MinimizeBox = false, StartPosition = FormStartPosition.CenterScreen, Font = new Font("Segoe UI", 9), AutoScaleMode = AutoScaleMode.Dpi };
+            var form = new SettingsForm(settings, delegate(Settings updated) {
+                Storage.Save(updated);
+                settings = updated;
+                timer.Interval = settings.IntervalSeconds * 1000;
+            });
             settingsWindow = form;
-            var device = new TextBox { Text = settings.Device, Left = 170, Top = 20, Width = 320 };
-            var path = new TextBox { Text = settings.SmartctlPath, Left = 170, Top = 60, Width = 270 };
-            var browse = new Button { Text = "...", Left = 447, Top = 59, Width = 43 };
-            browse.Click += delegate { using (var dialog = new OpenFileDialog { Filter = "smartctl executable|smartctl.exe", CheckFileExists = true }) if (dialog.ShowDialog(form) == DialogResult.OK) path.Text = dialog.FileName; };
-            var interval = new NumericUpDown { Minimum = 1, Maximum = 3600, Value = settings.IntervalSeconds, Left = 170, Top = 110 };
-            var warm = new NumericUpDown { Minimum = 0, Maximum = 149, Value = settings.WarmCelsius, Left = 170, Top = 150 };
-            var hot = new NumericUpDown { Minimum = 1, Maximum = 150, Value = settings.HotCelsius, Left = 170, Top = 190 };
-            string[] labels = { "Device", "smartctl.exe (auto if blank)", "Refresh (seconds)", "Amber at (°C)", "Red at (°C)" };
-            int[] tops = { 23, 63, 113, 153, 193 };
-            for (int i = 0; i < labels.Length; i++) form.Controls.Add(new Label { Text = labels[i], Left = 15, Top = tops[i], AutoSize = true });
-            var save = new Button { Text = "Save", Left = 320, Top = 245, Width = 80 };
-            var cancel = new Button { Text = "Cancel", Left = 410, Top = 245, Width = 80, DialogResult = DialogResult.Cancel };
-            save.Click += async delegate
-            {
-                try
-                {
-                    var updated = new Settings { Device = device.Text.Trim(), SmartctlPath = path.Text.Trim(), IntervalSeconds = (int)interval.Value, WarmCelsius = (int)warm.Value, HotCelsius = (int)hot.Value };
-                    updated.Validate(); TemperatureReader.Locate(updated.SmartctlPath); Storage.Save(updated);
-                    settings = updated; timer.Interval = settings.IntervalSeconds * 1000; form.Close(); await Poll();
-                }
-                catch (Exception ex) { MessageBox.Show(form, ex.Message, "Cannot save settings", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
-            };
-            form.Controls.AddRange(new Control[] { device, path, browse, interval, warm, hot, save, cancel });
-            form.AcceptButton = save; form.CancelButton = cancel;
-            form.FormClosed += delegate { settingsWindow = null; form.Dispose(); };
+            form.FormClosed += async delegate { settingsWindow = null; form.Dispose(); await Poll(); };
             form.Show();
         }
         protected override void ExitThreadCore()
@@ -302,7 +409,9 @@ namespace SsdTemperatureTray
             {
                 if (!created) return 0;
                 Application.EnableVisualStyles(); Application.SetCompatibleTextRenderingDefault(false);
-                Application.Run(new TrayApplication());
+                var context = new TrayApplication();
+                if (args.Length == 1 && args[0] == "--settings") context.ShowSettings();
+                Application.Run(context);
             }
             return 0;
         }

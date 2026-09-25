@@ -1,5 +1,5 @@
 #define AppName "SSD Temperature Tray"
-#define AppVersion "1.0.0"
+#define AppVersion "1.0.1"
 [Setup]
 AppId={{39AD3EF8-7F82-4789-9430-7E5028C606D5}
 AppName={#AppName}

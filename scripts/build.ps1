@@ -16,5 +16,5 @@ if ($Installer) {
     if (!$IsccPath) { throw 'Install Inno Setup 6 or supply -IsccPath.' }
     & $IsccPath "$root/installer/setup.iss"
     if ($LASTEXITCODE -ne 0) { throw 'Installer compilation failed.' }
-    Get-FileHash "$root/dist/SsdTemperatureTray-Setup-1.0.0.exe" -Algorithm SHA256 | Format-List
+    Get-FileHash "$root/dist/SsdTemperatureTray-Setup-1.0.1.exe" -Algorithm SHA256 | Format-List
 }

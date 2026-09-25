@@ -7,7 +7,7 @@ It is a graphical companion to `smartctl -A /dev/sda`: no console window, no bac
 ## Features
 
 - Numeric Celsius icon, with exact temperature and reading time in the tooltip.
-- Configurable device, refresh interval, smartctl path, and icon color thresholds.
+- Detected-device dropdown with Rescan and manual entry; configurable refresh interval, smartctl path, and icon color thresholds.
 - Blue below 60°C, amber from 60°C, red from 70°C by default. These are display preferences, not manufacturer health limits.
 - A gray `--` on errors; double-click for details. Failed reads never leave an old temperature displayed as current.
 - Optional automatic startup at Windows sign-in, including after a reboot.
@@ -28,7 +28,7 @@ The app searches the standard `Program Files\smartmontools\bin` locations and th
    ```powershell
    & 'C:\Program Files\smartmontools\bin\smartctl.exe' -j -A /dev/sda
    ```
-2. Run `SsdTemperatureTray-Setup-1.0.0.exe` from a local build or a future GitHub release.
+2. Run `SsdTemperatureTray-Setup-1.0.1.exe` from a local build or a future GitHub release.
 3. Leave **Start automatically when I sign in to Windows** selected.
 4. Launch the app. Hover over its tray number for the temperature and last reading time. Double-click for details; right-click for Settings, refresh, startup, or Exit.
 
@@ -84,12 +84,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build.ps1 -Install
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build.ps1 -Installer -IsccPath 'C:\path\to\ISCC.exe'
 ```
 
-Output: `dist\SsdTemperatureTray-Setup-1.0.0.exe`; the build prints its SHA-256 hash. The installer and app are currently unsigned. Build outputs are intentionally excluded from Git; distribute the installer through GitHub Releases when publishing the repository.
+Output: `dist\SsdTemperatureTray-Setup-1.0.1.exe`; the build prints its SHA-256 hash. The installer and app are currently unsigned. Build outputs are intentionally excluded from Git; distribute the installer through GitHub Releases when publishing the repository.
 
 Unattended installation (launch the app separately afterwards):
 
 ```powershell
-Start-Process .\dist\SsdTemperatureTray-Setup-1.0.0.exe -ArgumentList '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /TASKS="startup"' -Wait
+Start-Process .\dist\SsdTemperatureTray-Setup-1.0.1.exe -ArgumentList '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /TASKS="startup"' -Wait
 ```
 
 ## Project layout
