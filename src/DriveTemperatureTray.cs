@@ -13,10 +13,10 @@ using System.Collections.Generic;
 using System.Windows.Forms;
 using Microsoft.Win32;
 
-[assembly: System.Reflection.AssemblyTitle("SSD Temperature Tray")]
-[assembly: System.Reflection.AssemblyVersion("1.0.3.0")]
+[assembly: System.Reflection.AssemblyTitle("Drive Temperature Tray")]
+[assembly: System.Reflection.AssemblyVersion("1.0.4.0")]
 
-namespace SsdTemperatureTray
+namespace DriveTemperatureTray
 {
     public sealed class Settings
     {
@@ -45,10 +45,17 @@ namespace SsdTemperatureTray
 
     public static class Storage
     {
-        public static readonly string DirectoryPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SsdTemperatureTray");
+        public static readonly string DirectoryPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "DriveTemperatureTray");
         public static string ConfigPath { get { return Path.Combine(DirectoryPath, "settings.json"); } }
         public static Settings Load()
         {
+            // Preserve user preferences when upgrading from the original product name.
+            string legacyConfig = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SsdTemperatureTray", "settings.json");
+            if (!File.Exists(ConfigPath) && File.Exists(legacyConfig))
+            {
+                Directory.CreateDirectory(DirectoryPath);
+                File.Copy(legacyConfig, ConfigPath, false);
+            }
             if (!File.Exists(ConfigPath)) { var defaults = new Settings(); Save(defaults); return defaults; }
             var settings = new JavaScriptSerializer().Deserialize<Settings>(File.ReadAllText(ConfigPath));
             if (settings == null) throw new ArgumentException("Settings cannot be empty.");
@@ -205,11 +212,11 @@ namespace SsdTemperatureTray
     public static class Startup
     {
         private const string Key = @"Software\Microsoft\Windows\CurrentVersion\Run";
-        public static bool Enabled { get { using (var key = Registry.CurrentUser.OpenSubKey(Key)) return key != null && key.GetValue("SsdTemperatureTray") != null; } }
+        public static bool Enabled { get { using (var key = Registry.CurrentUser.OpenSubKey(Key)) return key != null && key.GetValue("DriveTemperatureTray") != null; } }
         public static void Set(bool enabled)
         {
             using (var key = Registry.CurrentUser.CreateSubKey(Key))
-                if (enabled) key.SetValue("SsdTemperatureTray", "\"" + Application.ExecutablePath + "\""); else key.DeleteValue("SsdTemperatureTray", false);
+                if (enabled) key.SetValue("DriveTemperatureTray", "\"" + Application.ExecutablePath + "\""); else key.DeleteValue("DriveTemperatureTray", false);
         }
     }
 
@@ -231,7 +238,7 @@ namespace SsdTemperatureTray
             AutoScaleDimensions = new SizeF(96, 96);
             AutoScaleMode = AutoScaleMode.Dpi;
             Font = new Font("Segoe UI", 9);
-            Text = "SSD Temperature Tray — Settings";
+            Text = "Drive Temperature Tray — Settings";
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false; MinimizeBox = false;
             StartPosition = FormStartPosition.CenterScreen;
@@ -335,7 +342,7 @@ namespace SsdTemperatureTray
             menu.Items.Add("Exit", null, delegate { ExitThread(); });
             tray.ContextMenuStrip = menu;
             tray.Icon = TemperatureIcon.Create("--", Color.DimGray);
-            tray.Text = "SSD Temperature: reading...";
+            tray.Text = "Drive Temperature: reading...";
             tray.DoubleClick += delegate { ShowDetails(); };
             tray.Visible = true;
             timer.Interval = settings.IntervalSeconds * 1000;
@@ -359,7 +366,7 @@ namespace SsdTemperatureTray
                 Icon previous = tray.Icon;
                 tray.Icon = TemperatureIcon.Create(text, color);
                 if (previous != null) previous.Dispose();
-                string tooltip = latest.Celsius.HasValue ? settings.Device + ": " + text + " °C | " + latest.TimestampUtc.ToLocalTime().ToString("HH:mm:ss") : "SSD temperature unavailable - double-click for details";
+                string tooltip = latest.Celsius.HasValue ? settings.Device + ": " + text + " °C | " + latest.TimestampUtc.ToLocalTime().ToString("HH:mm:ss") : "Drive temperature unavailable - double-click for details";
                 tray.Text = tooltip.Length > 63 ? tooltip.Substring(0, 63) : tooltip;
                 summary.Text = latest.Celsius.HasValue ? settings.Device + "  " + text + " °C" : "Temperature unavailable";
                 try { Storage.WriteAtomic(Path.Combine(Storage.DirectoryPath, "status.json"), new JavaScriptSerializer().Serialize(latest)); } catch (IOException) { } catch (UnauthorizedAccessException) { }
@@ -370,7 +377,7 @@ namespace SsdTemperatureTray
         private void ShowDetails()
         {
             string message = latest == null ? "Waiting for the first reading." : latest.Celsius.HasValue ? "Temperature: " + latest.Celsius + " °C\nRead at: " + latest.TimestampUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss") : latest.Error;
-            MessageBox.Show(message + "\n\nDevice: " + settings.Device + "\nRefresh: " + settings.IntervalSeconds + " seconds\nsmartctl exit: " + (latest == null ? "pending" : latest.ExitCode.ToString()) + "\n\nIcon colors: blue < " + settings.WarmCelsius + " °C, amber < " + settings.HotCelsius + " °C, red above.\nColors are configurable display thresholds, not drive health limits.", "SSD Temperature Tray", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show(message + "\n\nDevice: " + settings.Device + "\nRefresh: " + settings.IntervalSeconds + " seconds\nsmartctl exit: " + (latest == null ? "pending" : latest.ExitCode.ToString()) + "\n\nIcon colors: blue < " + settings.WarmCelsius + " °C, amber < " + settings.HotCelsius + " °C, red above.\nColors are configurable display thresholds, not drive health limits.", "Drive Temperature Tray", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
         public void ShowSettings()
         {
@@ -407,7 +414,7 @@ namespace SsdTemperatureTray
                 return reading.Celsius.HasValue ? 0 : 1;
             }
             bool created;
-            using (var mutex = new Mutex(true, @"Local\SsdTemperatureTray", out created))
+            using (var mutex = new Mutex(true, @"Local\DriveTemperatureTray", out created))
             {
                 if (!created) return 0;
                 Application.EnableVisualStyles(); Application.SetCompatibleTextRenderingDefault(false);

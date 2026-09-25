@@ -1,6 +1,6 @@
-# SSD Temperature Tray
+# Drive Temperature Tray
 
-A small Windows system tray app that displays your SSD's current temperature **as a number in the tray icon**, refreshing every **2 seconds** by default.
+A small Windows system tray app that displays your drive's current temperature **as a number in the tray icon**, refreshing every **2 seconds** by default.
 
 It is a graphical companion to `smartctl -A /dev/sda`: no console window, no background service, and no network requests from the app.
 
@@ -8,7 +8,7 @@ It is a graphical companion to `smartctl -A /dev/sda`: no console window, no bac
 
 Poor ventilation can make a laptop run hot—for example, when its air vents are blocked by a soft surface. As components heat up, they may throttle performance to protect themselves, sometimes causing severe slowdowns. An overheating SSD can reduce its transfer speeds substantially.
 
-SSD Temperature Tray keeps the selected drive's temperature visible in real time, so you can notice rising temperatures and see how they change when you improve ventilation or reduce the workload. It monitors the **drive itself**, not CPU temperature or the whole laptop; temperature alone does not prove the cause of a slowdown. Supported HDDs work too.
+Drive Temperature Tray keeps the selected drive's temperature visible in real time, so you can notice rising temperatures and see how they change when you improve ventilation or reduce the workload. It monitors the **drive itself**, not CPU temperature or the whole laptop; temperature alone does not prove the cause of a slowdown. Supported HDDs work too.
 
 ![Drive temperature displayed in the Windows system tray](docs/images/tray.png)
 
@@ -32,25 +32,27 @@ The app searches the standard `Program Files\smartmontools\bin` locations and th
 
 ## Install and use
 
-1. Install smartmontools if needed and confirm that it can read your SSD:
+1. Install smartmontools if needed and confirm that it can read your drive:
    ```powershell
    & 'C:\Program Files\smartmontools\bin\smartctl.exe' -j -A /dev/sda
    ```
-2. Run `SsdTemperatureTray-Setup-1.0.3.exe` from a local build or a future GitHub release.
+2. Run `DriveTemperatureTray-Setup-1.0.4.exe` from a local build or a future GitHub release.
 3. Leave **Start automatically when I sign in to Windows** selected.
 4. Launch the app. Hover over its tray number for the temperature and last reading time. Double-click for details; right-click for Settings, refresh, startup, or Exit.
 
 Windows may initially put the icon in the tray overflow (`^`). Drag it onto the taskbar notification area, or enable it in Windows taskbar settings.
 
-The installer uses `%LOCALAPPDATA%\Programs\SsdTemperatureTray` and adds a quoted executable path to `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` under `SsdTemperatureTray`. Startup occurs when your desktop session begins, not before sign-in. Windows Task Manager's Startup apps settings can separately disable it.
+The installer uses `%LOCALAPPDATA%\Programs\DriveTemperatureTray` and adds a quoted executable path to `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` under `DriveTemperatureTray`. Startup occurs when your desktop session begins, not before sign-in. Windows Task Manager's Startup apps settings can separately disable it.
 
-To uninstall, use **Settings → Apps → Installed apps → SSD Temperature Tray**, or the Start menu uninstall shortcut. The startup entry is removed. Personal settings and the most recent diagnostic reading are retained in `%LOCALAPPDATA%\SsdTemperatureTray`; delete that folder manually if you no longer want them.
+Upgrading from **SSD Temperature Tray** updates the same installation, replaces the old startup entry and shortcuts, and imports your existing settings. An existing installation keeps its previous installation folder; new installations use the folder above.
+
+To uninstall, use **Settings → Apps → Installed apps → Drive Temperature Tray**, or the Start menu uninstall shortcut. The startup entry is removed. Personal settings and the most recent diagnostic reading are retained in `%LOCALAPPDATA%\DriveTemperatureTray`; delete that folder manually if you no longer want them.
 
 ## Configuration and troubleshooting
 
 Right-click the tray icon and choose **Settings**.
 
-![SSD Temperature Tray settings dialog](docs/images/settings.png)
+![Drive Temperature Tray settings dialog](docs/images/settings.png)
 
 | Option | What it does |
 | --- | --- |
@@ -66,7 +68,7 @@ Right-click the tray icon and choose **Settings**.
 
 Color thresholds are visual cues, not the drive manufacturer's thermal limits, and they do not control cooling or throttling. The tray menu also provides **Start when I sign in**, **Refresh now**, **Details**, and **Exit**. Exit stops monitoring until you launch the app again or sign in with startup enabled.
 
-Settings are stored in `%LOCALAPPDATA%\SsdTemperatureTray\settings.json`:
+Settings are stored in `%LOCALAPPDATA%\DriveTemperatureTray\settings.json`:
 
 ```json
 {
@@ -85,8 +87,8 @@ If the tray shows `--`, double-click it for the error, verify the device with `s
 The latest read result is replaced in `status.json` beside the settings file. It contains the temperature, UTC timestamp, error (if any), and smartctl exit code; it is not an accumulating log. The timestamp uses the .NET JSON `/Date(milliseconds-since-epoch)/` representation. A one-shot diagnostic is also available:
 
 ```powershell
-$app = "$env:LOCALAPPDATA\Programs\SsdTemperatureTray\SsdTemperatureTray.exe"
-$report = "$env:TEMP\ssd-temperature-probe.json"
+$app = "$env:LOCALAPPDATA\Programs\DriveTemperatureTray\DriveTemperatureTray.exe"
+$report = "$env:TEMP\drive-temperature-probe.json"
 Start-Process -FilePath $app -ArgumentList "--probe `"$report`"" -Wait
 Get-Content $report
 ```
@@ -100,7 +102,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\test.ps1
 ```
 
-Output: `build\SsdTemperatureTray.exe` and its `.config` file. Keep them together.
+Output: `build\DriveTemperatureTray.exe` and its `.config` file. Keep them together.
 
 For the Windows installer, install [Inno Setup 6](https://jrsoftware.org/isdl.php), then run:
 
@@ -110,12 +112,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build.ps1 -Install
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build.ps1 -Installer -IsccPath 'C:\path\to\ISCC.exe'
 ```
 
-Output: `dist\SsdTemperatureTray-Setup-1.0.3.exe`; the build prints its SHA-256 hash. The installer and app are currently unsigned. Build outputs are intentionally excluded from Git; distribute the installer through GitHub Releases when publishing the repository.
+Output: `dist\DriveTemperatureTray-Setup-1.0.4.exe`; the build prints its SHA-256 hash. The installer and app are currently unsigned. Build outputs are intentionally excluded from Git; distribute the installer through GitHub Releases when publishing the repository.
 
 Unattended installation (launch the app separately afterwards):
 
 ```powershell
-Start-Process .\dist\SsdTemperatureTray-Setup-1.0.3.exe -ArgumentList '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /TASKS="startup"' -Wait
+Start-Process .\dist\DriveTemperatureTray-Setup-1.0.4.exe -ArgumentList '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /TASKS="startup"' -Wait
 ```
 
 ## Project layout

@@ -1,6 +1,6 @@
 using System;
 using System.Drawing;
-using SsdTemperatureTray;
+using DriveTemperatureTray;
 using System.IO;
 using System.Threading;
 using System.Diagnostics;
